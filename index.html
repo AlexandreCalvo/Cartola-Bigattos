@@ -109,24 +109,50 @@ function limpar() {
 }
 
 function grafico(id, labels, data, color) {
+  const isMobile = window.innerWidth <= 600;
+
   const c = new Chart(document.getElementById(id), {
     type: 'bar',
     data: {
-      labels,
-      datasets: [{ data, backgroundColor: color }]
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: color,
+        borderRadius: 6
+      }]
     },
+    plugins: [ChartDataLabels],
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: isMobile ? 'y' : 'x', // ✅ CORREÇÃO-CHAVE
       plugins: {
         legend: { display: false },
         datalabels: {
-          color: '#fff',
-          font: { size: 9 },
+          anchor: isMobile ? 'end' : 'end',
+          align: isMobile ? 'right' : 'top',
+          clamp: true,
+          clip: false,
+          color: '#ffffff',
+          font: {
+            size: isMobile ? 10 : 9,
+            weight: 600
+          },
           formatter: v => Number.isInteger(v) ? v : v.toFixed(2)
         }
       },
-      scales: { y: { beginAtZero: true } }
+      scales: {
+        x: {
+          beginAtZero: true,
+          ticks: { color: '#fff' }
+        },
+        y: {
+          ticks: { color: '#fff' }
+        }
+      }
     }
   });
+
   charts.push(c);
 }
 
