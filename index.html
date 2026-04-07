@@ -110,13 +110,19 @@ function limpar() {
 
 function grafico(id, labels, data, color) {
   const isMobile = window.innerWidth <= 600;
+  const canvas = document.getElementById(id);
 
-  const c = new Chart(document.getElementById(id), {
+  // ✅ Altura dinâmica para garantir todos os nomes
+  canvas.parentNode.style.height = isMobile
+    ? `${labels.length * 22}px`
+    : '300px';
+
+  const c = new Chart(canvas, {
     type: 'bar',
     data: {
-      labels: labels,
+      labels,
       datasets: [{
-        data: data,
+        data,
         backgroundColor: color,
         borderRadius: 6
       }]
@@ -125,11 +131,11 @@ function grafico(id, labels, data, color) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      indexAxis: isMobile ? 'y' : 'x', // ✅ CORREÇÃO-CHAVE
+      indexAxis: isMobile ? 'y' : 'x',
       plugins: {
         legend: { display: false },
         datalabels: {
-          anchor: isMobile ? 'end' : 'end',
+          anchor: 'end',
           align: isMobile ? 'right' : 'top',
           clamp: true,
           clip: false,
@@ -144,10 +150,15 @@ function grafico(id, labels, data, color) {
       scales: {
         x: {
           beginAtZero: true,
-          ticks: { color: '#fff' }
+          ticks: {
+            color: '#ffffff'
+          }
         },
         y: {
-          ticks: { color: '#fff' }
+          ticks: {
+            color: '#ffffff',
+            autoSkip: false   // ✅ MOSTRA TODOS OS JOGADORES
+          }
         }
       }
     }
