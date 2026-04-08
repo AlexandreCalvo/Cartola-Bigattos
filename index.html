@@ -112,17 +112,17 @@ function grafico(id, labels, data, color) {
   const isMobile = window.innerWidth <= 600;
   const canvas = document.getElementById(id);
 
-  // ✅ Altura dinâmica para garantir todos os nomes
+  // ✅ Altura real suficiente para TODOS os nomes
   canvas.parentNode.style.height = isMobile
-    ? `${labels.length * 22}px`
+    ? `${labels.length * 28}px`
     : '300px';
 
   const c = new Chart(canvas, {
     type: 'bar',
     data: {
-      labels,
+      labels: labels,
       datasets: [{
-        data,
+        data: data,
         backgroundColor: color,
         borderRadius: 6
       }]
@@ -131,7 +131,10 @@ function grafico(id, labels, data, color) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+
+      // ✅ Barra horizontal no mobile
       indexAxis: isMobile ? 'y' : 'x',
+
       plugins: {
         legend: { display: false },
         datalabels: {
@@ -147,17 +150,19 @@ function grafico(id, labels, data, color) {
           formatter: v => Number.isInteger(v) ? v : v.toFixed(2)
         }
       },
+
       scales: {
         x: {
           beginAtZero: true,
-          ticks: {
-            color: '#ffffff'
-          }
+          ticks: { color: '#ffffff' }
         },
         y: {
           ticks: {
             color: '#ffffff',
-            autoSkip: false   // ✅ MOSTRA TODOS OS JOGADORES
+
+            // ✅ ESTES DOIS JUNTOS SÃO O SEGREDO
+            autoSkip: false,
+            maxTicksLimit: labels.length
           }
         }
       }
