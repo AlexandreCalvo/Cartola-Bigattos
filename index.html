@@ -1,170 +1,281 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Cartola - Liga Bigattos</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CARTOLA BIGATTOS</title>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- DEPENDÊNCIAS (CORRETAS) -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f6f8;
-      margin: 20px;
-    }
+<style>
+:root {
+  --bg:#0a0a0a;
+  --panel:#141414;
+  --accent:#ff6a00;
+  --blue:#00c2ff;
+  --green:#00e676;
+  --red:#ff5252;
+  --yellow:#ffc400;
+  --text:#ffffff;
+}
 
-    h1, h2 {
-      text-align: center;
-    }
+* {
+  box-sizing: border-box;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
 
-    canvas {
-      max-width: 100%;
-      margin: 40px 0;
-      background: #fff;
-      padding: 20px;
-      border-radius: 8px;
-    }
-  </style>
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  background: #000;
+  padding: 14px;
+  border-bottom: 3px solid var(--accent);
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.header-top h1 {
+  margin: 0;
+  color: var(--accent);
+}
+
+select, input {
+  background: #000;
+  color: #fff;
+  border: 1px solid var(--accent);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.kpis {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.kpi {
+  background: var(--panel);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.kpi strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+.container {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .container { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--panel);
+  padding: 12px;
+  border-radius: 10px;
+}
+
+h2 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+
+canvas {
+  width: 100%;
+}
+</style>
 </head>
+
 <body>
 
-<h1>Liga Bigattos - Análises Cartola</h1>
+<header>
+  <div class="header-top">
+    <h1>⚽ CARTOLA BIGATTOS</h1>
+    <div>
+      Rodada:
+      <select id="rodadaSelect"></select>
+    </div>
+  </div>
 
-<h2>1️⃣ Pontuação dos Times por Rodada</h2>
-<canvas id="chartPorRodada"></canvas>
+  <div class="kpis">
+    <div class="kpi">🏆 Líder<strong id="kpiLider">-</strong></div>
+    <div class="kpi">🧊 Lanterna<strong id="kpiLanterna">-</strong></div>
+    <div class="kpi">🍺 Maior Pagador<strong id="kpiPagador">-</strong></div>
+    <div class="kpi">💰 Valor Arrecadado<strong id="kpiValor">R$ 0,00</strong></div>
+    <div class="kpi">🍻 Total em Litros<strong id="kpiLitros">0 L</strong></div>
+  </div>
+</header>
 
-<h2>2️⃣ Soma Total de Pontos (Todas as Rodadas)</h2>
-<canvas id="chartTotal"></canvas>
+<div class="container">
 
-<h2>3️⃣ 5 Piores Colocados por Rodada</h2>
-<canvas id="chartPioresRodada"></canvas>
+  <div class="card"><h2>📊 Pontuadores da Rodada</h2><canvas id="g1"></canvas></div>
+  <div class="card"><h2>🍺 Pagadores da Rodada</h2><canvas id="g2"></canvas></div>
+  <div class="card"><h2>📈 Total de Pontos</h2><canvas id="g3"></canvas></div>
+  <div class="card"><h2>🍻 Total de Cervejas</h2><canvas id="g4"></canvas></div>
 
-<h2>4️⃣ Soma dos 5 Piores Colocados (Todas as Rodadas)</h2>
-<canvas id="chartPioresTotal"></canvas>
+  <div class="card">
+    <h2>📤 Upload cartola.xlsx</h2>
+    <input type="file" id="fileInput" accept=".xlsx">
+  </div>
 
+</div>
 
 <script>
-const TIMES = [
-  24433, 95668, 97725, 873902, 1398130,
-  3399644, 5537940, 5540469, 8088855,
-  8163497, 8605337, 9073789, 19849595,
-  26085113, 50194598
-];
+Chart.register(ChartDataLabels);
 
-const PROXY = "https://corsproxy.io/?";
-const BASE_URL = "https://api.cartola.globo.com/time/id";
+let charts = [];
+let pontos = [];
+let cervejas = [];
+let jogadores = [];
 
-async function fetchTime(timeId, rodada) {
-  const url = `${PROXY}${BASE_URL}/${timeId}/${rodada}`;
-  const res = await fetch(url);
-  return await res.json();
+function destruirGraficos() {
+  charts.forEach(c => c.destroy());
+  charts = [];
 }
 
-async function carregarDados() {
-  // Descobrir rodada atual
-  const temp = await fetchTime(TIMES[0], 1);
-  const rodadaAtual = temp.rodada_atual;
+function criarGrafico(id, labels, data, color) {
+  const isMobile = window.innerWidth <= 600;
+  const canvas = document.getElementById(id);
 
-  let dadosPorRodada = {};
-  let somaTotal = {};
-  let nomesTimes = {};
+  canvas.parentNode.style.height = isMobile
+    ? `${labels.length * 28}px`
+    : '300px';
 
-  for (let rodada = 1; rodada <= rodadaAtual; rodada++) {
-    dadosPorRodada[rodada] = [];
-
-    for (let timeId of TIMES) {
-      const data = await fetchTime(timeId, rodada);
-
-      const pontos = data.pontos || 0;
-      const nome = data.time.nome;
-
-      nomesTimes[timeId] = nome;
-
-      if (!somaTotal[timeId]) somaTotal[timeId] = 0;
-      somaTotal[timeId] += pontos;
-
-      dadosPorRodada[rodada].push({
-        timeId,
-        nome,
-        pontos
-      });
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: color,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: isMobile ? 'y' : 'x',
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: 'end',
+          align: isMobile ? 'right' : 'top',
+          clamp: true,
+          clip: false,
+          color: '#fff',
+          font: { size: isMobile ? 10 : 9, weight: 600 },
+          formatter: v => Number.isInteger(v) ? v : v.toFixed(2)
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, ticks: { color: '#fff' } },
+        y: {
+          ticks: {
+            color: '#fff',
+            autoSkip: false,
+            maxTicksLimit: labels.length
+          }
+        }
+      }
     }
-  }
+  });
 
-  gerarGraficos(dadosPorRodada, somaTotal, nomesTimes);
+  charts.push(chart);
 }
 
-function gerarGraficos(dadosPorRodada, somaTotal, nomesTimes) {
+document.getElementById("fileInput").addEventListener("change", e => {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const wb = XLSX.read(ev.target.result, { type: "binary" });
 
-  // 1 - Pontuadores por rodada (última rodada)
-  const ultimaRodada = Object.keys(dadosPorRodada).slice(-1)[0];
-  const rodadaData = dadosPorRodada[ultimaRodada];
+    pontos = XLSX.utils.sheet_to_json(wb.Sheets["TB_PONTOS_C_CAPITA_PIVOT"]);
+    cervejas = XLSX.utils.sheet_to_json(wb.Sheets["TB_PAGADOR_C_CAPITA_PIVOT"]);
 
-  new Chart(document.getElementById("chartPorRodada"), {
-    type: "bar",
-    data: {
-      labels: rodadaData.map(t => t.nome),
-      datasets: [{
-        label: `Rodada ${ultimaRodada}`,
-        data: rodadaData.map(t => t.pontos),
-        backgroundColor: "rgba(54, 162, 235, 0.7)"
-      }]
-    }
-  });
+    jogadores = [...new Set(pontos.map(p => p.Jogador))];
+    const rodadas = [...new Set(pontos.map(p => p.Rodadas_Pontos))];
 
-  // 2 - Soma total
-  new Chart(document.getElementById("chartTotal"), {
-    type: "bar",
-    data: {
-      labels: Object.keys(nomesTimes).map(id => nomesTimes[id]),
-      datasets: [{
-        label: "Total de Pontos",
-        data: Object.keys(somaTotal).map(id => somaTotal[id]),
-        backgroundColor: "rgba(75, 192, 192, 0.7)"
-      }]
-    }
-  });
+    const select = document.getElementById("rodadaSelect");
+    select.innerHTML = rodadas.map(r => `<option>${r}</option>`).join("");
+    select.value = rodadas.at(-1);
 
-  // 3 - 5 piores por rodada (última rodada)
-  const pioresRodada = [...rodadaData]
-    .sort((a, b) => a.pontos - b.pontos)
-    .slice(0, 5);
+    atualizar();
+  };
+  reader.readAsBinaryString(e.target.files[0]);
+});
 
-  new Chart(document.getElementById("chartPioresRodada"), {
-    type: "bar",
-    data: {
-      labels: pioresRodada.map(t => t.nome),
-      datasets: [{
-        label: "5 Piores da Rodada",
-        data: pioresRodada.map(t => t.pontos),
-        backgroundColor: "rgba(255, 99, 132, 0.7)"
-      }]
-    }
-  });
+document.getElementById("rodadaSelect").addEventListener("change", atualizar);
 
-  // 4 - Soma dos 5 piores no geral
-  const pioresTotal = Object.keys(somaTotal)
-    .map(id => ({ nome: nomesTimes[id], pontos: somaTotal[id] }))
-    .sort((a, b) => a.pontos - b.pontos)
-    .slice(0, 5);
+function atualizar() {
+  destruirGraficos();
+  const rodada = document.getElementById("rodadaSelect").value;
 
-  new Chart(document.getElementById("chartPioresTotal"), {
-    type: "bar",
-    data: {
-      labels: pioresTotal.map(t => t.nome),
-      datasets: [{
-        label: "5 Piores no Total",
-        data: pioresTotal.map(t => t.pontos),
-        backgroundColor: "rgba(153, 102, 255, 0.7)"
-      }]
-    }
-  });
+  const pontosRodada = jogadores.map(j =>
+    pontos.find(p => p.Jogador === j && p.Rodadas_Pontos === rodada)?.Pontos || 0
+  );
 
+  const cervejaRodada = jogadores.map(j =>
+    cervejas.find(c => c.Jogador === j && c.Rodadas_Cerveja === rodada)?.Cerveja || 0
+  );
+
+  criarGrafico("g1", jogadores, pontosRodada, "#00c2ff");
+  criarGrafico("g2", jogadores, cervejaRodada, "#ffc400");
+  criarGrafico(
+    "g3",
+    jogadores,
+    jogadores.map(j => pontos.filter(p => p.Jogador === j).reduce((s,p)=>s+p.Pontos,0)),
+    "#00e676"
+  );
+  criarGrafico(
+    "g4",
+    jogadores,
+    jogadores.map(j => cervejas.filter(c => c.Jogador === j).reduce((s,c)=>s+c.Cerveja,0)),
+    "#ff6a00"
+  );
+
+  const ranking = jogadores.map((j,i)=>({j,p:pontosRodada[i]})).sort((a,b)=>b.p-a.p);
+  const totalC = cervejas.reduce((s,c)=>s+(c.Cerveja||0),0);
+
+  document.getElementById("kpiLider").innerText = ranking[0].j;
+  document.getElementById("kpiLanterna").innerText = ranking.at(-1).j;
+  document.getElementById("kpiValor").innerText = `R$ ${(totalC*5).toFixed(2)}`;
+  document.getElementById("kpiLitros").innerText = `${((totalC*600)/1000).toFixed(1)} L`;
+
+  const maiorPagador = jogadores
+    .map(j => ({ j, t: cervejas.filter(c => c.Jogador === j).reduce((s,c)=>s+c.Cerveja,0) }))
+    .sort((a,b)=>b.t-a.t)[0];
+
+  document.getElementById("kpiPagador").innerText = maiorPagador.j;
 }
-
-carregarDados();
 </script>
 
 </body>
 </html>
-``
